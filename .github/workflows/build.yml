@@ -1,5 +1,7 @@
 name: build
-on: [push]
+on:
+  push:
+  workflow_dispatch:  
 env:
   SkiaSharpVersion: 2.88.9
 jobs:
