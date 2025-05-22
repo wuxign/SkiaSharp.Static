@@ -58,11 +58,62 @@ jobs:
 
       - name: Build skia
         working-directory: ${{github.workspace}}
+        shell: pwsh
         run: |
           cd skiasharp\externals\skia
           ..\depot_tools\ninja -C ${{github.workspace}}\out\windows\x86\ SkiaSharp
+          
+          # Create intermediate directory for library processing
           cd ${{github.workspace}}\out\windows\x86\
-          lib.exe /OUT:libSkiaSharp.lib *.lib
+          mkdir -p lib_parts
+          
+          # Process libraries in smaller chunks to avoid linker memory issues
+          $libs = Get-ChildItem -Filter "*.lib" | Where-Object { $_.FullName }
+          
+          # Explicitly handle dng_sdk.lib first to resolve duplicate definitions
+          if (Test-Path "dng_sdk.lib") {
+            Copy-Item "dng_sdk.lib" -Destination "lib_parts\part_base.lib"
+          }
+          
+          # Split remaining libs into chunks (approximately 10 libs per chunk)
+          $i = 0
+          $chunkSize = 10
+          $chunk = 0
+          
+          foreach ($lib in $libs) {
+            # Skip dng_sdk.lib as it's already handled
+            if ($lib.Name -eq "dng_sdk.lib") {
+              continue
+            }
+            
+            # Create a new chunk when needed
+            if ($i % $chunkSize -eq 0) {
+              $chunk++
+            }
+            
+            # Create response file for this chunk if it doesn't exist
+            $respFile = "lib_parts\chunk_$chunk.rsp"
+            if (-not (Test-Path $respFile)) {
+              "" | Out-File -FilePath $respFile -Encoding ASCII
+            }
+            
+            # Add this lib to the response file
+            $lib.FullName | Out-File -FilePath $respFile -Encoding ASCII -Append
+            $i++
+          }
+          
+          # Process each chunk into intermediate libs
+          Get-ChildItem -Path "lib_parts" -Filter "chunk_*.rsp" | ForEach-Object {
+            $outLib = "lib_parts\$($_.BaseName).lib"
+            lib.exe /NOLOGO /IGNORE:4006 /OUT:$outLib @$_.FullName
+          }
+          
+          # Combine all intermediate libs
+          $intermediateLibs = Get-ChildItem -Path "lib_parts" -Filter "*.lib" | ForEach-Object { $_.FullName }
+          $intermediateLibs | Out-File -FilePath "lib_parts\final.rsp" -Encoding ASCII
+          
+          # Create the final library
+          lib.exe /NOLOGO /IGNORE:4006 /OUT:libSkiaSharp.lib @lib_parts\final.rsp
 
       - name: Build libHarfBuzzSharp
         working-directory: ${{github.workspace}}
