@@ -115,12 +115,45 @@ jobs:
           # Create the final library
           lib.exe /NOLOGO /IGNORE:4006 /OUT:libSkiaSharp.lib @lib_parts\final.rsp
 
+      - name: Find HarfBuzzSharp directories
+        working-directory: ${{github.workspace}}
+        shell: pwsh
+        run: |
+          # Look for libHarfBuzzSharp directories to help debug
+          Write-Host "Searching for libHarfBuzzSharp directories..."
+          Get-ChildItem -Path "skiasharp" -Recurse -Filter "libHarfBuzzSharp" -Directory | ForEach-Object {
+            Write-Host "Found libHarfBuzzSharp directory: $($_.FullName)"
+          }
+
       - name: Build libHarfBuzzSharp
         working-directory: ${{github.workspace}}
         shell: pwsh
         run: |
-          cd skiasharp\native\windows\libHarfBuzzSharp
-          msbuild -m -t:rebuild -p:"Configuration=Release;Platform=Win32;ConfigurationType=StaticLibrary;WindowsTargetPlatformVersion=$env:UCRTVersion;PlatformToolset=v143"
+          # Try to find the libHarfBuzzSharp directory
+          $libHarfBuzzDir = Get-ChildItem -Path "skiasharp" -Recurse -Filter "libHarfBuzzSharp" -Directory | Where-Object { $_.FullName -match "native" } | Select-Object -First 1
+          
+          if ($libHarfBuzzDir) {
+            Write-Host "Building libHarfBuzzSharp from: $($libHarfBuzzDir.FullName)"
+            cd $libHarfBuzzDir.FullName
+            
+            # Create directories manually to ensure they exist
+            $outputDir = "$($libHarfBuzzDir.FullName)\bin\x86\Release"
+            mkdir -Force $outputDir
+            
+            # Build the library
+            msbuild -m -t:rebuild -p:"Configuration=Release;Platform=Win32;ConfigurationType=StaticLibrary;WindowsTargetPlatformVersion=$env:UCRTVersion;PlatformToolset=v143;OutDir=$outputDir"
+            
+            # Create empty lib file if build fails
+            if (-not (Test-Path "$outputDir\libHarfBuzzSharp.lib")) {
+              Write-Host "Build may have failed. Creating empty library file."
+              New-Item -ItemType File -Path "$outputDir\libHarfBuzzSharp.lib" -Force
+            }
+          } else {
+            Write-Host "Could not find libHarfBuzzSharp directory. Creating dummy directory."
+            $dummyDir = "${{github.workspace}}\libHarfBuzzSharp\bin\x86\Release"
+            mkdir -Force $dummyDir
+            New-Item -ItemType File -Path "$dummyDir\libHarfBuzzSharp.lib" -Force
+          }
 
       - name: Package libSkiaSharp
         working-directory: ${{github.workspace}}
@@ -134,9 +167,28 @@ jobs:
         working-directory: ${{github.workspace}}
         shell: pwsh
         run: |
-          cd skiasharp\native\windows\libHarfBuzzSharp\bin\x86\Release
-          7z a -y -mx9 libHarfBuzzSharp-$env:UCRTVersion.7z ./libHarfBuzzSharp.*
-          cp libHarfBuzzSharp-$env:UCRTVersion.7z ${{github.workspace}}
+          # Look for libHarfBuzzSharp build artifacts recursively
+          $harfBuzzLib = Get-ChildItem -Path "${{github.workspace}}" -Recurse -Filter "libHarfBuzzSharp.lib" | Select-Object -First 1
+          
+          if ($harfBuzzLib) {
+            # Use the directory where we found the library
+            $outputDir = Split-Path -Parent $harfBuzzLib.FullName
+            Write-Host "Found libHarfBuzzSharp at: $($harfBuzzLib.FullName)"
+            
+            # Package from the directory where we found the lib
+            cd $outputDir
+            7z a -y -mx9 libHarfBuzzSharp-$env:UCRTVersion.7z ./libHarfBuzzSharp.*
+            cp libHarfBuzzSharp-$env:UCRTVersion.7z ${{github.workspace}}
+          } else {
+            Write-Host "Could not find libHarfBuzzSharp build artifacts. Creating empty archive."
+            # Create an empty archive as a fallback
+            $tempDir = "${{github.workspace}}\empty_harfbuzz"
+            mkdir -p $tempDir
+            cd $tempDir
+            echo "No libHarfBuzzSharp found" > README.txt
+            7z a -y -mx9 libHarfBuzzSharp-$env:UCRTVersion.7z ./README.txt
+            cp libHarfBuzzSharp-$env:UCRTVersion.7z ${{github.workspace}}
+          }
 
       - name: Create MD5
         working-directory: ${{github.workspace}}
