@@ -22,8 +22,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p skiasharp
-          mkdir -p $BuildDir
-          mv args.gn $BuildDir
+          mkdir -p out/windows/x86
+          mv args.gn out/windows/x86
 
       - name: Clone source
         working-directory: ${{github.workspace}}
@@ -50,7 +50,7 @@ jobs:
         run: |
           cd skiasharp\externals\skia
           uv run --python 3.12 -- python tools\git-sync-deps
-          gn gen "$env:BuildDir"
+          gn gen "../../out/windows/x86"
 
       - name: Save src cache immediately
         id: save-src-cache
@@ -66,7 +66,7 @@ jobs:
         shell: pwsh
         run: |
           cd skiasharp\externals\skia
-          autoninja -C "$env:BuildDir" skia SkiaSharp
+          autoninja -C "../../out/windows/x86" skia SkiaSharp
 
       - name: Build libHarfBuzzSharp
         working-directory: ${{github.workspace}}
@@ -79,7 +79,7 @@ jobs:
         working-directory: ${{github.workspace}}
         shell: bash
         run: |
-          cd $BuildDir
+          cd out/windows/x86
           ls
           7z a -y -mx9 $SkiaSharpName.7z skia.lib SkiaSharp.lib
           mv $SkiaSharpName.7z $GITHUB_WORKSPACE
