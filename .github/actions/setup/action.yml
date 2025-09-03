@@ -10,22 +10,23 @@ runs:
     - name: Install uv
       uses: astral-sh/setup-uv@v6
 
-    - name: Setup depot tools
-      uses: 2ndlab/actions/setup-depot-tools@main
-
-    - name: Fix depot tools conflicts
+    - name: Pre-clean depot tools cache
       shell: pwsh
       run: |
-        Write-Host "Checking depot_tools status..."
-        cd depot_tools
-        if (git status --porcelain) {
-          Write-Host "Found local changes in depot_tools, resetting..."
-          git reset --hard HEAD
-          git clean -fd
-          Write-Host "depot_tools reset completed"
+        Write-Host "Pre-cleaning depot_tools cache if exists..."
+        if (Test-Path "depot_tools") {
+          Write-Host "Found existing depot_tools, cleaning conflicts..."
+          cd depot_tools
+          git reset --hard HEAD 2>$null || Write-Host "No git reset needed"
+          git clean -fd 2>$null || Write-Host "No cleanup needed"
+          cd ..
+          Write-Host "depot_tools pre-cleaned"
         } else {
-          Write-Host "depot_tools is clean"
+          Write-Host "No existing depot_tools found"
         }
+
+    - name: Setup depot tools
+      uses: 2ndlab/actions/setup-depot-tools@main
 
     - name: Setup PATH and ENV
       shell: pwsh
