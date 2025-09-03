@@ -13,6 +13,20 @@ runs:
     - name: Setup depot tools
       uses: 2ndlab/actions/setup-depot-tools@main
 
+    - name: Fix depot tools conflicts
+      shell: pwsh
+      run: |
+        Write-Host "Checking depot_tools status..."
+        cd depot_tools
+        if (git status --porcelain) {
+          Write-Host "Found local changes in depot_tools, resetting..."
+          git reset --hard HEAD
+          git clean -fd
+          Write-Host "depot_tools reset completed"
+        } else {
+          Write-Host "depot_tools is clean"
+        }
+
     - name: Setup PATH and ENV
       shell: pwsh
       run: |
