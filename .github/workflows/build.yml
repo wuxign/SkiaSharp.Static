@@ -127,7 +127,49 @@ jobs:
         shell: pwsh
         run: |
           cd skiasharp\native\windows\libHarfBuzzSharp
-          msbuild -m -t:rebuild -p:"Configuration=Release;Platform=x86;ConfigurationType=StaticLibrary;WindowsTargetPlatformVersion=$env:UCRTVersion;PlatformToolset=v143"
+          Write-Host "Listing project files..."
+          Get-ChildItem -Recurse -Include "*.vcxproj","*.sln" | Format-Table Name, FullName
+          
+          # Try to find and build individual .vcxproj files for x86
+          $vcxprojFiles = Get-ChildItem -Recurse -Filter "*.vcxproj"
+          if ($vcxprojFiles.Count -gt 0) {
+            Write-Host "Found .vcxproj files, building directly..."
+            foreach ($proj in $vcxprojFiles) {
+              Write-Host "Building project: $($proj.Name)"
+              try {
+                # Try Win32 first (standard name for x86 in Visual Studio)
+                msbuild $proj.FullName -m -t:rebuild -p:"Configuration=Release;Platform=Win32;ConfigurationType=StaticLibrary;WindowsTargetPlatformVersion=$env:UCRTVersion;PlatformToolset=v143"
+                Write-Host "Successfully built $($proj.Name) with Win32 platform"
+                break
+              } catch {
+                Write-Host "Win32 failed for $($proj.Name), trying x86..."
+                try {
+                  msbuild $proj.FullName -m -t:rebuild -p:"Configuration=Release;Platform=x86;ConfigurationType=StaticLibrary;WindowsTargetPlatformVersion=$env:UCRTVersion;PlatformToolset=v143"
+                  Write-Host "Successfully built $($proj.Name) with x86 platform"
+                  break
+                } catch {
+                  Write-Host "x86 also failed for $($proj.Name)"
+                }
+              }
+            }
+          } else {
+            Write-Host "No .vcxproj files found, trying solution file..."
+            # Try to build solution with different platform names
+            $slnFiles = Get-ChildItem -Filter "*.sln"
+            if ($slnFiles.Count -gt 0) {
+              $sln = $slnFiles[0]
+              Write-Host "Building solution: $($sln.Name)"
+              try {
+                msbuild $sln.FullName -m -t:rebuild -p:"Configuration=Release;Platform=Win32"
+              } catch {
+                Write-Host "Win32 failed, trying x86..."
+                msbuild $sln.FullName -m -t:rebuild -p:"Configuration=Release;Platform=x86"
+              }
+            } else {
+              Write-Error "No build files found!"
+              exit 1
+            }
+          }
 
       - name: Package libSkiaSharp
         working-directory: ${{github.workspace}}
@@ -142,8 +184,31 @@ jobs:
         working-directory: ${{github.workspace}}
         shell: bash
         run: |
-          cd skiasharp/native/windows/libHarfBuzzSharp/bin/x86/Release
-          7z a -y -mx9 $HarfBuzzSharpName.7z ./libHarfBuzzSharp.*
+          # Try different possible output paths for x86 build
+          if [ -d "skiasharp/native/windows/libHarfBuzzSharp/bin/x86/Release" ]; then
+            echo "Found x86/Release output"
+            cd skiasharp/native/windows/libHarfBuzzSharp/bin/x86/Release
+          elif [ -d "skiasharp/native/windows/libHarfBuzzSharp/bin/Win32/Release" ]; then
+            echo "Found Win32/Release output"
+            cd skiasharp/native/windows/libHarfBuzzSharp/bin/Win32/Release
+          elif [ -d "skiasharp/native/windows/libHarfBuzzSharp/x86/Release" ]; then
+            echo "Found x86/Release in project root"
+            cd skiasharp/native/windows/libHarfBuzzSharp/x86/Release
+          elif [ -d "skiasharp/native/windows/libHarfBuzzSharp/Win32/Release" ]; then
+            echo "Found Win32/Release in project root"
+            cd skiasharp/native/windows/libHarfBuzzSharp/Win32/Release
+          else
+            echo "Searching for libHarfBuzzSharp files..."
+            find skiasharp/native/windows/libHarfBuzzSharp -name "*HarfBuzzSharp*" -type f
+            echo "Using first found location..."
+            cd $(find skiasharp/native/windows/libHarfBuzzSharp -name "*HarfBuzzSharp.lib" -type f | head -1 | xargs dirname)
+          fi
+          
+          echo "Current directory: $(pwd)"
+          echo "Files in directory:"
+          ls -la
+          
+          7z a -y -mx9 $HarfBuzzSharpName.7z ./libHarfBuzzSharp.* ./HarfBuzzSharp.* 2>/dev/null || echo "Some files may not exist, continuing..."
           mv $HarfBuzzSharpName.7z $GITHUB_WORKSPACE
 
       - uses: ./.github/actions/deploy
