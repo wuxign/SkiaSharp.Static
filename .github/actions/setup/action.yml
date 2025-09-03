@@ -5,7 +5,7 @@ runs:
   steps:
     - uses: TheMrMilchmann/setup-msvc-dev@v3
       with:
-        arch: x64
+        arch: x86
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -18,4 +18,4 @@ runs:
       run: |
         echo "SkiaSharpName=libSkiaSharp-$env:SkiaSharpVersion-$env:UCRTVersion" >> $env:GITHUB_ENV
         echo "HarfBuzzSharpName=libHarfBuzzSharp-$env:UCRTVersion" >> $env:GITHUB_ENV
-        echo "BuildDir=$env:GITHUB_WORKSPACE/out/windows/x64" >> $env:GITHUB_ENV
+        echo "BuildDir=$env:GITHUB_WORKSPACE/out/windows/x86" >> $env:GITHUB_ENV

@@ -72,7 +72,7 @@ jobs:
         shell: pwsh
         run: |
           cd skiasharp\native\windows\libHarfBuzzSharp
-          msbuild -m -t:rebuild -p:"Configuration=Release;Platform=x64;ConfigurationType=StaticLibrary;WindowsTargetPlatformVersion=$env:UCRTVersion;PlatformToolset=v143"
+          msbuild -m -t:rebuild -p:"Configuration=Release;Platform=x86;ConfigurationType=StaticLibrary;WindowsTargetPlatformVersion=$env:UCRTVersion;PlatformToolset=v143"
 
       - name: Package libSkiaSharp
         working-directory: ${{github.workspace}}
@@ -87,7 +87,7 @@ jobs:
         working-directory: ${{github.workspace}}
         shell: bash
         run: |
-          cd skiasharp/native/windows/libHarfBuzzSharp/bin/x64/Release
+          cd skiasharp/native/windows/libHarfBuzzSharp/bin/x86/Release
           7z a -y -mx9 $HarfBuzzSharpName.7z ./libHarfBuzzSharp.*
           mv $HarfBuzzSharpName.7z $GITHUB_WORKSPACE
 
