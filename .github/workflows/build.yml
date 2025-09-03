@@ -74,7 +74,49 @@ jobs:
           Get-ChildItem | Format-Table Name
           if (Test-Path "build.ninja") {
             Write-Host "Running ninja build..."
-            python "$env:GITHUB_WORKSPACE\depot_tools\ninja.py" skia SkiaSharp
+            # Try different ninja approaches
+            $ninjaFound = $false
+            
+            # Method 1: Try ninja.exe directly
+            if (Get-Command "ninja.exe" -ErrorAction SilentlyContinue) {
+              Write-Host "Using ninja.exe directly"
+              try {
+                & ninja.exe skia SkiaSharp
+                $ninjaFound = $true
+              } catch {
+                Write-Host "ninja.exe failed: $_"
+              }
+            }
+            
+            # Method 2: Try system ninja
+            if (-not $ninjaFound -and (Get-Command "ninja" -ErrorAction SilentlyContinue)) {
+              Write-Host "Using system ninja"
+              try {
+                & ninja skia SkiaSharp
+                $ninjaFound = $true
+              } catch {
+                Write-Host "System ninja failed: $_"
+              }
+            }
+            
+            # Method 3: Try to find ninja in depot_tools directory
+            if (-not $ninjaFound) {
+              $depotToolsNinja = Join-Path $env:GITHUB_WORKSPACE "depot_tools\ninja.exe"
+              if (Test-Path $depotToolsNinja) {
+                Write-Host "Using depot_tools ninja.exe at: $depotToolsNinja"
+                try {
+                  & "$depotToolsNinja" skia SkiaSharp
+                  $ninjaFound = $true
+                } catch {
+                  Write-Host "depot_tools ninja.exe failed: $_"
+                }
+              }
+            }
+            
+            if (-not $ninjaFound) {
+              Write-Error "All ninja methods failed"
+              exit 1
+            }
           } else {
             Write-Error "build.ninja not found"
             exit 1
