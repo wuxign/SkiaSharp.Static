@@ -66,9 +66,19 @@ jobs:
         working-directory: ${{github.workspace}}
         shell: pwsh
         run: |
-          cd skiasharp\externals\skia
-          $outDir = Join-Path $env:GITHUB_WORKSPACE "out\windows\x86"
-          ninja -C "$outDir" skia SkiaSharp
+          $outDir = "out\windows\x86"
+          Write-Host "Changing to output directory: $outDir"
+          cd $outDir
+          Write-Host "Current directory: $(Get-Location)"
+          Write-Host "Files in directory:"
+          Get-ChildItem | Format-Table Name
+          if (Test-Path "build.ninja") {
+            Write-Host "Running ninja build..."
+            python "$env:GITHUB_WORKSPACE\depot_tools\ninja.py" skia SkiaSharp
+          } else {
+            Write-Error "build.ninja not found"
+            exit 1
+          }
 
       - name: Build libHarfBuzzSharp
         working-directory: ${{github.workspace}}
