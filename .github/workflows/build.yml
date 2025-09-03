@@ -6,7 +6,7 @@ on:
       - ".github/actions/**"
       - "args.gn"
 env:
-  SkiaSharpVersion: 2.88.9
+  SkiaSharpVersion: 3.119.0
 jobs:
   build:
     runs-on: windows-2025
@@ -129,7 +129,7 @@ jobs:
           cd skiasharp\native\windows\libHarfBuzzSharp
           Write-Host "Listing project files..."
           Get-ChildItem -Recurse -Include "*.vcxproj","*.sln" | Format-Table Name, FullName
-          
+
           # Try to find and build individual .vcxproj files for x86
           $vcxprojFiles = Get-ChildItem -Recurse -Filter "*.vcxproj"
           if ($vcxprojFiles.Count -gt 0) {
@@ -203,11 +203,11 @@ jobs:
             echo "Using first found location..."
             cd $(find skiasharp/native/windows/libHarfBuzzSharp -name "*HarfBuzzSharp.lib" -type f | head -1 | xargs dirname)
           fi
-          
+
           echo "Current directory: $(pwd)"
           echo "Files in directory:"
           ls -la
-          
+
           7z a -y -mx9 $HarfBuzzSharpName.7z ./libHarfBuzzSharp.* ./HarfBuzzSharp.* 2>/dev/null || echo "Some files may not exist, continuing..."
           mv $HarfBuzzSharpName.7z $GITHUB_WORKSPACE
 
