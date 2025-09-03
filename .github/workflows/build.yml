@@ -50,7 +50,8 @@ jobs:
         run: |
           cd skiasharp\externals\skia
           uv run --python 3.12 -- python tools\git-sync-deps
-          gn gen "../../out/windows/x86"
+          $outDir = Join-Path $env:GITHUB_WORKSPACE "out\windows\x86"
+          gn gen "$outDir"
 
       - name: Save src cache immediately
         id: save-src-cache
@@ -66,7 +67,8 @@ jobs:
         shell: pwsh
         run: |
           cd skiasharp\externals\skia
-          autoninja -C "../../out/windows/x86" skia SkiaSharp
+          $outDir = Join-Path $env:GITHUB_WORKSPACE "out\windows\x86"
+          ninja -C "$outDir" skia SkiaSharp
 
       - name: Build libHarfBuzzSharp
         working-directory: ${{github.workspace}}
