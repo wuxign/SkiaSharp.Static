@@ -1,0 +1,48 @@
+name: Release Artifacts
+'on':
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: '构建运行的 Run ID（从 Actions 页面获取）'
+        required: true
+        type: string
+      tag_name:
+        description: 'Release 标签名称（例如：v2.88.9 或 v3.119.0-pre）'
+        required: true
+        type: string
+      is_prerelease:
+        description: '是否为预发布版本'
+        required: true
+        type: boolean
+        default: false
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts from build run
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./artifacts
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          ls -R ./artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag_name }}
+          name: Release ${{ inputs.tag_name }}
+          prerelease: ${{ inputs.is_prerelease }}
+          files: ./artifacts/**/*.7z
+          generate_release_notes: true
