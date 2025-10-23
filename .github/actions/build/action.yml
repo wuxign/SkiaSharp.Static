@@ -7,7 +7,11 @@ runs:
       shell: nu {0}
       run: |
         mkdir skiasharp $env.BuildDir
-        mv args.gn $env.BuildDir
+        if $env.Architecture == "x86" {
+            mv args.gn86 $"($env.BuildDir)/args.gn"
+        } else {
+            mv args.gn $env.BuildDir
+        }
 
     - name: Clone source
       shell: nu {0}
@@ -56,9 +60,11 @@ runs:
       run: |
         cd skiasharp/native/windows/libHarfBuzzSharp
 
+        let platform = if $env.Architecture == "x86" { "Win32" } else { "x64" }
+        
         let msbuild_record = {
             Configuration: "Release"
-            Platform: "x64"
+            Platform: $platform
             ConfigurationType: "StaticLibrary"
             WindowsTargetPlatformVersion: $env.UCRTVersion
             PlatformToolset: "v143"

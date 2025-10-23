@@ -1,10 +1,15 @@
 name: build-skia-2.88.9
 on:
-  push:
-    paths:
-      - ".github/workflows/**"
-      - ".github/actions/**"
-      - "args.gn"
+  workflow_dispatch:
+    inputs:
+      architecture:
+        description: '构建架构'
+        required: true
+        type: choice
+        options:
+          - x64
+          - x86
+        default: x64
 defaults:
   run:
     shell: nu {0}
@@ -21,6 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
+        with:
+          architecture: ${{ inputs.architecture }}
       - name: Install LLVM 21
         run: winget install --id LLVM.LLVM --accept-package-agreements --accept-source-agreements --disable-interactivity
       - uses: ./.github/actions/build
